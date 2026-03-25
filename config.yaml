@@ -1,0 +1,14 @@
+# LinkedIn Post Automation — Runtime Config
+
+posting:
+  cadence: "2x/week"
+  days: ["Tuesday", "Thursday"]
+
+generation:
+  model: "claude-sonnet-4-20250514"
+  variations_per_topic: 2
+  max_tokens: 1500
+
+topics:
+  default_count: 5
+  industry_focus: "AI & automation, enterprise AI adoption, operational intelligence, human-AI collaboration"
