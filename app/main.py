@@ -155,12 +155,15 @@ async def home(request: Request):
     topics = _load_topics()
     drafts = _load_drafts()
     posted = _load_posted()
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "topics": topics,
-        "drafts": drafts,
-        "posted": posted,
-    })
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        context={
+            "topics": topics,
+            "drafts": drafts,
+            "posted": posted,
+        },
+    )
 
 
 @app.get("/api/topics")
