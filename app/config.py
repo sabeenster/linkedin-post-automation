@@ -14,7 +14,7 @@ load_dotenv()
 
 @dataclass
 class GenerationConfig:
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-opus-4-6"
     variations_per_topic: int = 2
     max_tokens: int = 1500
 
@@ -90,7 +90,7 @@ class AppConfig:
 
         g_raw = raw.get("generation", {})
         config.generation = GenerationConfig(
-            model=g_raw.get("model", "claude-sonnet-4-20250514"),
+            model=g_raw.get("model", "claude-opus-4-6"),
             variations_per_topic=g_raw.get("variations_per_topic", 2),
             max_tokens=g_raw.get("max_tokens", 1500),
         )

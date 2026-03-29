@@ -5,7 +5,7 @@ posting:
   days: ["Tuesday", "Thursday"]
 
 generation:
-  model: "claude-sonnet-4-20250514"
+  model: "claude-opus-4-6"
   variations_per_topic: 2
   max_tokens: 1500
 
