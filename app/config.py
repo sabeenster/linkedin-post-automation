@@ -66,6 +66,10 @@ class AppConfig:
     def topics_dir(self) -> Path:
         return Path(__file__).resolve().parent.parent / "topics"
 
+    @property
+    def posted_dir(self) -> Path:
+        return Path(__file__).resolve().parent.parent / "posted"
+
     @classmethod
     def load(cls, path: str | Path = "config.yaml") -> "AppConfig":
         """Load config from YAML file, falling back to defaults."""

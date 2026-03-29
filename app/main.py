@@ -114,6 +114,35 @@ def _load_drafts() -> list[dict]:
     return drafts
 
 
+def _load_posted() -> list[dict]:
+    """Load posted LinkedIn posts from posted/ directory, most recent first."""
+    posted_dir = config.posted_dir
+    if not posted_dir.exists():
+        return []
+    posted_files = sorted(posted_dir.glob("*.md"), reverse=True)
+    posts = []
+    for f in posted_files:
+        content = f.read_text()
+        # Parse frontmatter-style metadata
+        meta = {}
+        body = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                for line in parts[1].strip().split("\n"):
+                    if ": " in line:
+                        key, val = line.split(": ", 1)
+                        meta[key.strip()] = val.strip()
+                body = parts[2].strip()
+        posts.append({
+            "filename": f.name,
+            "topic": meta.get("topic", f.stem),
+            "posted_date": meta.get("posted_date", ""),
+            "content": body,
+        })
+    return posts
+
+
 # --- Routes ---
 
 @app.get("/health")
@@ -125,10 +154,12 @@ async def health():
 async def home(request: Request):
     topics = _load_topics()
     drafts = _load_drafts()
+    posted = _load_posted()
     return templates.TemplateResponse("index.html", {
         "request": request,
         "topics": topics,
         "drafts": drafts,
+        "posted": posted,
     })
 
 
@@ -194,3 +225,61 @@ async def suggest():
 @app.get("/api/drafts")
 async def get_drafts():
     return {"drafts": _load_drafts()}
+
+
+@app.get("/api/posted")
+async def get_posted():
+    return {"posted": _load_posted()}
+
+
+@app.post("/api/posted/add")
+async def mark_as_posted(
+    topic: str = Form(...),
+    content: str = Form(...),
+    posted_date: str = Form(""),
+):
+    """Save a post as 'posted on LinkedIn'. Stores the final text for history and learning."""
+    posted_dir = config.posted_dir
+    posted_dir.mkdir(parents=True, exist_ok=True)
+
+    if not posted_date:
+        posted_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Create filename from date and topic
+    slug = re.sub(r"[^\w\s-]", "", topic.lower())
+    slug = re.sub(r"[\s_]+", "-", slug)[:40].strip("-")
+    filename = f"{posted_date}_{slug}.md"
+
+    file_content = f"""---
+topic: {topic}
+posted_date: {posted_date}
+---
+
+{content.strip()}
+"""
+    (posted_dir / filename).write_text(file_content)
+    logger.info(f"Marked as posted: {filename}")
+
+    # Also append to sample_posts.md so the generator learns from it
+    _add_to_sample_posts(topic, content.strip())
+
+    return JSONResponse({"status": "ok", "filename": filename})
+
+
+def _add_to_sample_posts(topic: str, content: str):
+    """Append a posted post to sample_posts.md for voice learning."""
+    samples_path = config.voice_dir / "sample_posts.md"
+    if not samples_path.exists():
+        return
+
+    existing = samples_path.read_text()
+    # Find the highest post number
+    numbers = re.findall(r"## Post (\d+)", existing)
+    next_num = max(int(n) for n in numbers) + 1 if numbers else 1
+
+    # Sanitize topic into a short title
+    title = topic[:60]
+
+    entry = f"\n\n---\n\n## Post {next_num}: {title}\n\n{content}\n"
+    with open(samples_path, "a") as f:
+        f.write(entry)

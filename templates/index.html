@@ -204,6 +204,53 @@
             cursor: pointer;
         }
         .generate-from-topic:hover { background: #0a66c2; color: white; }
+
+        /* Posted items */
+        .posted-item {
+            background: #161616;
+            border: 1px solid #222;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .posted-header {
+            padding: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+        .posted-header:hover { background: #1a1a1a; }
+        .posted-topic { font-size: 15px; color: #e0e0e0; }
+        .posted-date-badge {
+            font-size: 11px;
+            background: #16a34a;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .posted-body {
+            padding: 20px;
+            font-size: 15px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .posted-body.open { display: block; }
+
+        .mark-posted-btn {
+            background: transparent;
+            border: 1px solid #16a34a;
+            color: #16a34a;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .mark-posted-btn:hover { background: #16a34a; color: white; }
+        .result-actions { display: flex; gap: 6px; }
     </style>
 </head>
 <body>
@@ -220,6 +267,7 @@
             <div class="tab" data-tab="generate">Generate</div>
             <div class="tab" data-tab="finesse">Finesse</div>
             <div class="tab" data-tab="drafts">Drafts</div>
+            <div class="tab" data-tab="posted">Posted</div>
         </div>
 
         <!-- TOPICS TAB -->
@@ -288,12 +336,38 @@
             <div class="section-title">Saved Drafts</div>
             <div id="drafts-list"></div>
         </div>
+
+        <!-- POSTED TAB -->
+        <div id="posted" class="tab-content">
+            <div class="section-title">Mark as Posted</div>
+            <form id="posted-form">
+                <div class="form-group">
+                    <label>Topic / Title</label>
+                    <input type="text" id="posted-topic" placeholder="What was the post about?" required>
+                </div>
+                <div class="form-group">
+                    <label>Final Posted Text</label>
+                    <textarea id="posted-content" placeholder="Paste the exact text you posted on LinkedIn..." rows="10" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Date Posted (optional, defaults to today)</label>
+                    <input type="text" id="posted-date" placeholder="YYYY-MM-DD">
+                </div>
+                <button type="submit" class="btn btn-green">Save as Posted</button>
+            </form>
+
+            <div style="margin-top: 32px;">
+                <div class="section-title">Post History</div>
+                <div id="posted-list"></div>
+            </div>
+        </div>
     </div>
 
     <script>
         // Initial data from server
         let topicsData = {{ topics | tojson }};
         let draftsData = {{ drafts | tojson }};
+        let postedData = {{ posted | tojson }};
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -436,7 +510,7 @@
                 form.append('angle', angle);
                 const res = await fetch('/api/generate', { method: 'POST', body: form });
                 const data = await res.json();
-                renderResults(results, data.drafts);
+                renderResults(results, data.drafts, topic);
             } catch (err) {
                 results.innerHTML = `<div class="empty-state">Generation failed. Check server logs.</div>`;
             }
@@ -466,7 +540,7 @@
                 form.append('context', context);
                 const res = await fetch('/api/finesse', { method: 'POST', body: form });
                 const data = await res.json();
-                renderResults(results, data.drafts);
+                renderResults(results, data.drafts, 'Finessed Draft');
             } catch (err) {
                 results.innerHTML = `<div class="empty-state">Finesse failed. Check server logs.</div>`;
             }
@@ -476,7 +550,9 @@
         });
 
         // Render result cards
-        function renderResults(container, drafts) {
+        let currentResultTopic = '';
+        function renderResults(container, drafts, topic) {
+            currentResultTopic = topic || 'Draft';
             if (!drafts || drafts.length === 0) {
                 container.innerHTML = '<div class="empty-state">No results generated.</div>';
                 return;
@@ -487,7 +563,10 @@
                     <div class="result-card">
                         <div class="result-header">
                             <span class="result-label">Option ${label}</span>
-                            <button class="copy-btn" onclick="copyDraft(this, ${i})">Copy</button>
+                            <div class="result-actions">
+                                <button class="copy-btn" onclick="copyDraft(this, ${i})">Copy</button>
+                                <button class="mark-posted-btn" onclick="markAsPosted(${i})">Mark as Posted</button>
+                            </div>
                         </div>
                         <div class="result-body" id="result-${i}">${escHtml(d)}</div>
                     </div>
@@ -503,6 +582,82 @@
             setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
         }
 
+        // Mark a generated result as posted
+        async function markAsPosted(idx) {
+            const content = document.getElementById(`result-${idx}`).textContent;
+            const form = new FormData();
+            form.append('topic', currentResultTopic);
+            form.append('content', content);
+            form.append('posted_date', '');
+
+            const res = await fetch('/api/posted/add', { method: 'POST', body: form });
+            if (res.ok) {
+                const data = await res.json();
+                const today = new Date().toISOString().slice(0, 10);
+                postedData.unshift({ topic: currentResultTopic, content, posted_date: today, filename: data.filename });
+                renderPosted();
+                // Visual feedback
+                const btn = document.querySelectorAll('.mark-posted-btn')[idx];
+                if (btn) { btn.textContent = 'Saved!'; btn.style.borderColor = '#4ade80'; btn.style.color = '#4ade80'; }
+            }
+        }
+
+        // Render posted history
+        function renderPosted() {
+            const list = document.getElementById('posted-list');
+            if (postedData.length === 0) {
+                list.innerHTML = '<div class="empty-state">No posts marked as posted yet.</div>';
+                return;
+            }
+            list.innerHTML = postedData.map((p, i) => `
+                <div class="posted-item">
+                    <div class="posted-header" onclick="togglePosted(${i})">
+                        <span class="posted-topic">${escHtml(p.topic)}</span>
+                        <span class="posted-date-badge">${escHtml(p.posted_date || 'Unknown date')}</span>
+                    </div>
+                    <div class="posted-body" id="posted-body-${i}">${escHtml(p.content)}</div>
+                </div>
+            `).join('');
+        }
+
+        function togglePosted(idx) {
+            document.getElementById(`posted-body-${idx}`).classList.toggle('open');
+        }
+
+        // Posted form: manually add a past post
+        document.getElementById('posted-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById('posted-topic').value.trim();
+            const content = document.getElementById('posted-content').value.trim();
+            const postedDate = document.getElementById('posted-date').value.trim();
+            if (!topic || !content) return;
+
+            const form = new FormData();
+            form.append('topic', topic);
+            form.append('content', content);
+            form.append('posted_date', postedDate);
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/posted/add', { method: 'POST', body: form });
+                if (res.ok) {
+                    const data = await res.json();
+                    const date = postedDate || new Date().toISOString().slice(0, 10);
+                    postedData.unshift({ topic, content, posted_date: date, filename: data.filename });
+                    renderPosted();
+                    document.getElementById('posted-topic').value = '';
+                    document.getElementById('posted-content').value = '';
+                    document.getElementById('posted-date').value = '';
+                }
+            } catch (err) {
+                console.error('Failed to save posted:', err);
+            }
+
+            btn.disabled = false;
+        });
+
         // Escape HTML
         function escHtml(str) {
             const d = document.createElement('div');
@@ -516,6 +671,7 @@
         // Initial render
         renderTopics();
         renderDrafts();
+        renderPosted();
     </script>
 </body>
 </html>
