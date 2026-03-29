@@ -1,0 +1,7 @@
+Jason's response referencing Chesterton's Fence (https://thoughtbot.com/blog/chestertons-fence):
+
+How many times have you looked at a system, a piece of code, a business process, then raised an eyebrow and thought: "Why on earth was it done this way?". It's easy to jump to conclusions of incompetence, but with a bit of empathy and curiosity you will likely find there's a reason why.
+
+Oftentimes there is a reason, and a good reason, that is not initially obvious. Maybe they already tried things the suggested way but discovered some usability issues. Maybe there are legal requirements that restrict how things can work.
+
+Sometimes there is a reason, but not a great reason. A deliberate, suboptimal decision made due to time pressure is a classic example of this. Or, upon questioning of a suspiciously complicated looking system you may find that it relies on an old, proprietary, closed application that severely limits what can be done, so instead the team were forced to build a Rube Goldberg-esque monstrosity to work around its limitations.

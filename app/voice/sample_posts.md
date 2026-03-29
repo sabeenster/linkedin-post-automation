@@ -200,3 +200,30 @@ No slogans. No "powered by AI ✨" badges.
 Just fewer tabs, fewer errors, and the quiet satisfaction of a workflow that runs itself.
 
 So tell me: what's your favorite copy-paste task that makes you feel like you don't belong in 2026? I promise I won't judge, just automate :)
+
+---
+
+## Post 12: Break Up With Pivot Tables
+
+The worst thing you can do with AI is make it better than what people already have.
+
+Sounds backwards, right? But here's the thing: humans don't trust what they can't recognize.
+
+When we build AI agents for clients, Step 1 isn't "revolutionize your workflow." It's "recreate your crappy Excel spreadsheet exactly as-is, but faster."
+
+Same pivot tables. Same reports. Same wonky formatting that makes your eye twitch.
+
+Because that spreadsheet? It's not just data. It's proof of human intelligence. Someone built that thing cell by cell, formula by formula. It represents hundreds of hours of problem-solving.
+
+The Agentway approach:
+Mirror their process first. Then gradually remove the training wheels.
+
+I had to break up with pivot tables myself. Took me 6 months to trust an AI could handle what I'd been manually wrestling with for years. The relationship ended when I realized I was spending more time formatting than thinking.
+
+But first, the AI had to prove it could do my terrible manual work better than me.
+
+Trust isn't built through demos of what's possible. It's built through respect for what already exists.
+
+Your employees aren't afraid of being replaced. They're afraid their expertise doesn't matter.
+
+Show them it does, then show them something better.

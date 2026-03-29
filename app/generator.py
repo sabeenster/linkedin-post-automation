@@ -13,6 +13,26 @@ from app.config import AppConfig
 
 logger = logging.getLogger("linkedin.generator")
 
+FINESSE_SYSTEM_PROMPT = """You are helping Sabeen Minns, CEO & Co-Founder of Agentway, finesse an existing draft into a polished LinkedIn post.
+
+{voice_profile}
+
+## Reference Posts (this is how Sabeen actually writes)
+
+{sample_posts}
+
+## Critical Rules
+
+1. The draft text provided IS the post. Your job is to refine, tighten, and polish — not rewrite.
+2. Preserve Sabeen's original words and phrasing as much as possible. Only adjust for flow and clarity.
+3. If additional context is provided (e.g. a comment, article, or idea), weave it in naturally — do NOT let it take over the post.
+4. Output ONLY the final post text — no preamble, no "Here's the polished version", no explanation.
+5. NO CONTEXT BLEEDING: Do NOT pull in stories, examples, or details from the sample posts. Samples are ONLY for learning tone and structure.
+6. Keep it 150-300 words. Trim if needed, but never pad.
+7. Maintain the existing structure and hook unless there's a clear reason to adjust.
+8. Do NOT add buzzwords, corporate speak, or generic AI-sounding filler.
+"""
+
 SYSTEM_PROMPT = """You are ghostwriting a LinkedIn post as Sabeen Minns, CEO & Co-Founder of Agentway.
 
 You must write EXACTLY as Sabeen writes — her voice is the only acceptable voice. You are not writing "in the style of" someone; you ARE writing as her.
@@ -34,6 +54,8 @@ You must write EXACTLY as Sabeen writes — her voice is the only acceptable voi
 7. End with either a punchy one-liner OR an engagement question — not both.
 8. If the result sounds like it could have come from any AI writing tool, START OVER.
 9. Vary the structure — don't default to the same pattern every time.
+10. NO CONTEXT BLEEDING: ONLY use details, stories, and anecdotes explicitly provided in the topic and angle. Do NOT pull in stories, examples, or details from the sample posts or from previous conversations. Each post is self-contained.
+11. The sample posts are ONLY for learning Sabeen's tone, structure, and voice patterns — never borrow their specific stories, metaphors, or examples.
 """
 
 
@@ -119,5 +141,64 @@ async def generate_drafts(
 
     draft_path.write_text("\n".join(content_parts))
     logger.info(f"Drafts saved to {draft_path}")
+
+    return drafts
+
+
+async def finesse_draft(
+    draft_text: str,
+    config: AppConfig,
+    context: str | None = None,
+) -> list[str]:
+    """Take an existing draft and additional context, refine into polished LinkedIn post variations.
+
+    Returns a list of finessed draft strings.
+    """
+    voice_profile, sample_posts = _load_voice_files(config)
+
+    system = FINESSE_SYSTEM_PROMPT.format(
+        voice_profile=voice_profile,
+        sample_posts=sample_posts,
+    )
+
+    user_prompt = f"Here is the existing draft to finesse:\n\n{draft_text}"
+    if context:
+        user_prompt += f"\n\n---\n\nAdditional context to weave in (use sparingly, do NOT let it dominate):\n\n{context}"
+
+    client = anthropic.AsyncAnthropic()
+    drafts = []
+
+    for i in range(config.generation.variations_per_topic):
+        variation_hint = ""
+        if i == 0:
+            variation_hint = "\n\nStay very close to the original draft. Only tighten and polish."
+        elif i == 1:
+            variation_hint = "\n\nIntegrate the additional context more prominently while keeping the original draft's core message and structure."
+
+        response = await client.messages.create(
+            model=config.generation.model,
+            max_tokens=config.generation.max_tokens,
+            system=system,
+            messages=[
+                {"role": "user", "content": user_prompt + variation_hint},
+            ],
+        )
+
+        draft_text_out = response.content[0].text.strip()
+        drafts.append(draft_text_out)
+        logger.info(f"Finessed variation {i + 1}: {len(draft_text_out)} chars")
+
+    # Save drafts to disk
+    config.drafts_dir.mkdir(parents=True, exist_ok=True)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    draft_path = config.drafts_dir / f"finesse_{date_str}.md"
+
+    content_parts = [f"# Finessed LinkedIn Draft\n", f"Generated: {datetime.now().isoformat()}\n"]
+    for idx, draft in enumerate(drafts):
+        label = chr(65 + idx)
+        content_parts.append(f"\n---\n\n## Option {label}\n\n{draft}\n")
+
+    draft_path.write_text("\n".join(content_parts))
+    logger.info(f"Finessed drafts saved to {draft_path}")
 
     return drafts

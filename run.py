@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -87,6 +88,54 @@ async def run_generate(config: AppConfig, topic: str, angle: str | None = None):
     send_drafts_email(topic, drafts, config)
 
 
+async def run_finesse(config: AppConfig, draft_file: str, context_file: str | None = None):
+    """Finesse an existing draft with optional additional context."""
+    from app.generator import finesse_draft
+    from app.notify import send_drafts_email
+
+    draft_path = Path(draft_file)
+    if not draft_path.exists():
+        console.print(f"[red]Draft file not found: {draft_file}[/red]")
+        return
+
+    draft_text = draft_path.read_text().strip()
+
+    context = None
+    if context_file:
+        ctx_path = Path(context_file)
+        if ctx_path.exists():
+            context = ctx_path.read_text().strip()
+        else:
+            console.print(f"[yellow]Context file not found: {context_file} — proceeding without it[/yellow]")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Finessing draft...", total=None)
+        drafts = await finesse_draft(draft_text, config, context=context)
+        progress.update(task, description=f"Finessed {len(drafts)} variations")
+        progress.remove_task(task)
+
+    if not drafts:
+        console.print("[yellow]No drafts generated.[/yellow]")
+        return
+
+    console.print()
+    for idx, draft in enumerate(drafts):
+        label = chr(65 + idx)
+        console.print(Panel(
+            Markdown(draft),
+            title=f"Option {label}",
+            border_style="green",
+            width=80,
+        ))
+        console.print()
+
+    send_drafts_email("Finessed Draft", drafts, config)
+
+
 async def run_full(config: AppConfig):
     """Full pipeline: suggest topics, pick top 2, generate drafts, email everything."""
     from app.generator import generate_drafts
@@ -162,6 +211,11 @@ if __name__ == "__main__":
     gen_parser.add_argument("--topic", "-t", required=True, help="Topic to write about")
     gen_parser.add_argument("--angle", "-a", help="Optional angle or hook")
 
+    # finesse
+    fin_parser = subparsers.add_parser("finesse", help="Finesse an existing draft with optional context")
+    fin_parser.add_argument("--draft", "-d", required=True, help="Path to draft text file")
+    fin_parser.add_argument("--context", "-c", help="Path to additional context file (article, comment, etc.)")
+
     # full
     subparsers.add_parser("full", help="Full pipeline: suggest + generate + email")
 
@@ -181,6 +235,8 @@ if __name__ == "__main__":
         asyncio.run(run_suggest(config))
     elif args.command == "generate":
         asyncio.run(run_generate(config, args.topic, args.angle))
+    elif args.command == "finesse":
+        asyncio.run(run_finesse(config, args.draft, args.context))
     elif args.command == "full":
         asyncio.run(run_full(config))
     else:
