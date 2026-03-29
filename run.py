@@ -219,25 +219,35 @@ if __name__ == "__main__":
     # full
     subparsers.add_parser("full", help="Full pipeline: suggest + generate + email")
 
+    # serve
+    serve_parser = subparsers.add_parser("serve", help="Start the web UI server")
+    serve_parser.add_argument("--port", "-p", type=int, default=8000, help="Port to run on")
+    serve_parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+
     args = parser.parse_args()
     config = AppConfig.load("config.yaml")
-
-    if not config.anthropic_api_key:
-        logger.error("No ANTHROPIC_API_KEY set. Copy .env.example to .env and add your key.")
-        sys.exit(1)
 
     console.print(Panel.fit(
         "[bold blue]LinkedIn Post Automation[/bold blue]",
         subtitle="Powered by Agentway",
     ))
 
-    if args.command == "suggest":
-        asyncio.run(run_suggest(config))
-    elif args.command == "generate":
-        asyncio.run(run_generate(config, args.topic, args.angle))
-    elif args.command == "finesse":
-        asyncio.run(run_finesse(config, args.draft, args.context))
-    elif args.command == "full":
-        asyncio.run(run_full(config))
+    if args.command == "serve":
+        import uvicorn
+        from app.main import app as web_app
+        console.print(Panel.fit(f"[bold green]Starting web UI on {args.host}:{args.port}[/bold green]"))
+        uvicorn.run(web_app, host=args.host, port=args.port)
+    elif args.command in ("suggest", "generate", "finesse", "full"):
+        if not config.anthropic_api_key:
+            logger.error("No ANTHROPIC_API_KEY set. Copy .env.example to .env and add your key.")
+            sys.exit(1)
+        if args.command == "suggest":
+            asyncio.run(run_suggest(config))
+        elif args.command == "generate":
+            asyncio.run(run_generate(config, args.topic, args.angle))
+        elif args.command == "finesse":
+            asyncio.run(run_finesse(config, args.draft, args.context))
+        elif args.command == "full":
+            asyncio.run(run_full(config))
     else:
         parser.print_help()

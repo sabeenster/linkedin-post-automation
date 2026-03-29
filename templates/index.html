@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Post Automation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a66c2, #004182);
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 { font-size: 22px; color: white; }
+        .header .subtitle { color: #b3d4fc; font-size: 13px; margin-top: 4px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #222;
+            margin-bottom: 24px;
+        }
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            color: #888;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab:hover { color: #ccc; }
+        .tab.active { color: #4ade80; border-bottom-color: #4ade80; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, textarea:focus { border-color: #0a66c2; }
+        textarea { resize: vertical; min-height: 120px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary { background: #0a66c2; color: white; }
+        .btn-green { background: #16a34a; color: white; }
+        .btn-red { background: #dc2626; color: white; padding: 6px 12px; font-size: 12px; }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #333;
+            color: #ccc;
+        }
+
+        /* Topic list */
+        .topic-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 16px;
+            background: #161616;
+            border: 1px solid #222;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .topic-info { flex: 1; }
+        .topic-title { font-size: 15px; color: #e0e0e0; }
+        .topic-angle { font-size: 13px; color: #888; margin-top: 4px; }
+        .topic-actions { display: flex; gap: 8px; align-items: center; margin-left: 12px; }
+
+        /* Draft cards */
+        .draft-card {
+            background: #161616;
+            border: 1px solid #222;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .draft-header {
+            padding: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+        .draft-header:hover { background: #1a1a1a; }
+        .draft-label { font-size: 15px; color: #4ade80; font-weight: 600; }
+        .draft-date { font-size: 12px; color: #666; }
+        .draft-body {
+            padding: 20px;
+            font-size: 15px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .draft-body.open { display: block; }
+
+        /* Result cards */
+        .result-card {
+            background: #161616;
+            border: 1px solid #222;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .result-header {
+            padding: 12px 16px;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+        }
+        .result-label { color: #0a66c2; font-weight: 600; }
+        .result-body {
+            padding: 20px;
+            font-size: 15px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+        .copy-btn {
+            background: transparent;
+            border: 1px solid #444;
+            color: #888;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .copy-btn:hover { border-color: #4ade80; color: #4ade80; }
+
+        /* Loading */
+        .spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        .spinner.active { display: block; }
+        .spinner::before {
+            content: '';
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: #0a66c2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .results { margin-top: 24px; }
+        .empty-state { text-align: center; color: #555; padding: 48px 0; font-size: 14px; }
+        .btn-row { display: flex; gap: 8px; }
+        .section-title { font-size: 16px; color: #ccc; margin-bottom: 16px; }
+
+        .generate-from-topic {
+            background: transparent;
+            border: 1px solid #0a66c2;
+            color: #0a66c2;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .generate-from-topic:hover { background: #0a66c2; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>LinkedIn Post Automation</h1>
+            <div class="subtitle">Powered by Agentway</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" data-tab="topics">Topics</div>
+            <div class="tab" data-tab="generate">Generate</div>
+            <div class="tab" data-tab="finesse">Finesse</div>
+            <div class="tab" data-tab="drafts">Drafts</div>
+        </div>
+
+        <!-- TOPICS TAB -->
+        <div id="topics" class="tab-content active">
+            <div class="section-title">Add Topic</div>
+            <form id="add-topic-form">
+                <div class="form-group">
+                    <label>Topic</label>
+                    <input type="text" id="new-topic" placeholder="e.g. Why most AI demos fail in production" required>
+                </div>
+                <div class="form-group">
+                    <label>Angle (optional)</label>
+                    <input type="text" id="new-angle" placeholder="e.g. The gap between demo and daily operations">
+                </div>
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary">Add Topic</button>
+                    <button type="button" class="btn btn-green" id="suggest-btn">Suggest Topics (AI)</button>
+                </div>
+            </form>
+            <div class="spinner" id="suggest-spinner">Scanning industry trends...</div>
+
+            <div style="margin-top: 24px;">
+                <div class="section-title">Topic Backlog</div>
+                <div id="topic-list"></div>
+            </div>
+        </div>
+
+        <!-- GENERATE TAB -->
+        <div id="generate" class="tab-content">
+            <div class="section-title">Generate LinkedIn Post Drafts</div>
+            <form id="generate-form">
+                <div class="form-group">
+                    <label>Topic</label>
+                    <input type="text" id="gen-topic" placeholder="What should the post be about?" required>
+                </div>
+                <div class="form-group">
+                    <label>Angle / Hook (optional)</label>
+                    <input type="text" id="gen-angle" placeholder="Specific angle or hook to explore">
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Drafts</button>
+            </form>
+            <div class="spinner" id="gen-spinner">Generating drafts (this takes 15-30 seconds)...</div>
+            <div class="results" id="gen-results"></div>
+        </div>
+
+        <!-- FINESSE TAB -->
+        <div id="finesse" class="tab-content">
+            <div class="section-title">Finesse an Existing Draft</div>
+            <form id="finesse-form">
+                <div class="form-group">
+                    <label>Draft Text</label>
+                    <textarea id="fin-draft" placeholder="Paste your draft text here..." rows="10" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Additional Context (optional)</label>
+                    <textarea id="fin-context" placeholder="Any additional context to weave in (article, comment, idea)..." rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn btn-green">Finesse Draft</button>
+            </form>
+            <div class="spinner" id="fin-spinner">Finessing draft...</div>
+            <div class="results" id="fin-results"></div>
+        </div>
+
+        <!-- DRAFTS TAB -->
+        <div id="drafts" class="tab-content">
+            <div class="section-title">Saved Drafts</div>
+            <div id="drafts-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initial data from server
+        let topicsData = {{ topics | tojson }};
+        let draftsData = {{ drafts | tojson }};
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Render topics
+        function renderTopics() {
+            const list = document.getElementById('topic-list');
+            if (topicsData.length === 0) {
+                list.innerHTML = '<div class="empty-state">No topics yet. Add one above or use AI suggestions.</div>';
+                return;
+            }
+            list.innerHTML = topicsData.map(t => `
+                <div class="topic-item">
+                    <div class="topic-info">
+                        <div class="topic-title">${escHtml(t.topic)}</div>
+                        ${t.angle ? `<div class="topic-angle">${escHtml(t.angle)}</div>` : ''}
+                    </div>
+                    <div class="topic-actions">
+                        <button class="generate-from-topic" onclick="generateFromTopic('${escAttr(t.topic)}', '${escAttr(t.angle)}')">Generate</button>
+                        <button class="btn btn-red" onclick="removeTopic('${escAttr(t.topic)}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render drafts
+        function renderDrafts() {
+            const list = document.getElementById('drafts-list');
+            if (draftsData.length === 0) {
+                list.innerHTML = '<div class="empty-state">No drafts yet. Generate some from the Generate tab.</div>';
+                return;
+            }
+            list.innerHTML = draftsData.map((d, i) => `
+                <div class="draft-card">
+                    <div class="draft-header" onclick="toggleDraft(${i})">
+                        <span class="draft-label">${escHtml(d.filename)}</span>
+                        <span class="draft-date">${escHtml(d.modified)}</span>
+                    </div>
+                    <div class="draft-body" id="draft-body-${i}">${escHtml(d.content)}</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleDraft(idx) {
+            document.getElementById(`draft-body-${idx}`).classList.toggle('open');
+        }
+
+        // Add topic
+        document.getElementById('add-topic-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById('new-topic').value.trim();
+            const angle = document.getElementById('new-angle').value.trim();
+            if (!topic) return;
+
+            const form = new FormData();
+            form.append('topic', topic);
+            form.append('angle', angle);
+
+            const res = await fetch('/api/topics/add', { method: 'POST', body: form });
+            if (res.ok) {
+                topicsData.push({ topic, angle });
+                renderTopics();
+                document.getElementById('new-topic').value = '';
+                document.getElementById('new-angle').value = '';
+            }
+        });
+
+        // Remove topic
+        async function removeTopic(topic) {
+            const form = new FormData();
+            form.append('topic', topic);
+            const res = await fetch('/api/topics/remove', { method: 'POST', body: form });
+            if (res.ok) {
+                topicsData = topicsData.filter(t => t.topic !== topic);
+                renderTopics();
+            }
+        }
+
+        // Generate from topic list
+        function generateFromTopic(topic, angle) {
+            document.getElementById('gen-topic').value = topic;
+            document.getElementById('gen-angle').value = angle;
+            // Switch to generate tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector('[data-tab="generate"]').classList.add('active');
+            document.getElementById('generate').classList.add('active');
+        }
+
+        // Suggest topics (AI)
+        document.getElementById('suggest-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('suggest-btn');
+            const spinner = document.getElementById('suggest-spinner');
+            btn.disabled = true;
+            spinner.classList.add('active');
+
+            try {
+                const res = await fetch('/api/suggest', { method: 'POST' });
+                const data = await res.json();
+                if (data.topics && data.topics.length > 0) {
+                    // Reload topics from server
+                    const topicsRes = await fetch('/api/topics');
+                    const topicsJson = await topicsRes.json();
+                    topicsData = topicsJson.topics;
+                    renderTopics();
+                }
+            } catch (err) {
+                console.error('Suggest failed:', err);
+            }
+
+            btn.disabled = false;
+            spinner.classList.remove('active');
+        });
+
+        // Generate drafts
+        document.getElementById('generate-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById('gen-topic').value.trim();
+            const angle = document.getElementById('gen-angle').value.trim();
+            if (!topic) return;
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            const spinner = document.getElementById('gen-spinner');
+            const results = document.getElementById('gen-results');
+
+            btn.disabled = true;
+            spinner.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const form = new FormData();
+                form.append('topic', topic);
+                form.append('angle', angle);
+                const res = await fetch('/api/generate', { method: 'POST', body: form });
+                const data = await res.json();
+                renderResults(results, data.drafts);
+            } catch (err) {
+                results.innerHTML = `<div class="empty-state">Generation failed. Check server logs.</div>`;
+            }
+
+            btn.disabled = false;
+            spinner.classList.remove('active');
+        });
+
+        // Finesse draft
+        document.getElementById('finesse-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const draft = document.getElementById('fin-draft').value.trim();
+            const context = document.getElementById('fin-context').value.trim();
+            if (!draft) return;
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            const spinner = document.getElementById('fin-spinner');
+            const results = document.getElementById('fin-results');
+
+            btn.disabled = true;
+            spinner.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const form = new FormData();
+                form.append('draft_text', draft);
+                form.append('context', context);
+                const res = await fetch('/api/finesse', { method: 'POST', body: form });
+                const data = await res.json();
+                renderResults(results, data.drafts);
+            } catch (err) {
+                results.innerHTML = `<div class="empty-state">Finesse failed. Check server logs.</div>`;
+            }
+
+            btn.disabled = false;
+            spinner.classList.remove('active');
+        });
+
+        // Render result cards
+        function renderResults(container, drafts) {
+            if (!drafts || drafts.length === 0) {
+                container.innerHTML = '<div class="empty-state">No results generated.</div>';
+                return;
+            }
+            container.innerHTML = drafts.map((d, i) => {
+                const label = String.fromCharCode(65 + i);
+                return `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <span class="result-label">Option ${label}</span>
+                            <button class="copy-btn" onclick="copyDraft(this, ${i})">Copy</button>
+                        </div>
+                        <div class="result-body" id="result-${i}">${escHtml(d)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Copy to clipboard
+        async function copyDraft(btn, idx) {
+            const text = document.getElementById(`result-${idx}`).textContent;
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+        }
+
+        // Escape HTML
+        function escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+        function escAttr(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        // Initial render
+        renderTopics();
+        renderDrafts();
+    </script>
+</body>
+</html>
